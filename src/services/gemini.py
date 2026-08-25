@@ -48,7 +48,7 @@ def extract_advanced_fields_with_gemini(resume_text):
             {{
               "institution": "University Name",
               "degree": "Degree Title",
-              "Grade": null,
+              "grade": null,
               "graduation_date": "Month Year",
               "location": "City, State"
             }}

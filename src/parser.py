@@ -34,7 +34,7 @@ def parse_resume_file(file_path, use_gemini=True):
         "phone": extract_phone(text),
         "linkedin": extract_linkedin(text),
         "education": sections.get("education", []),
-        "experience": sections.get("experience", []),
+        "work_experience": sections.get("experience", []),
         "skills": extract_skills(sections.get("skills", [])),
         "certifications": sections.get("certifications", []),
         "projects": sections.get("projects", []),
