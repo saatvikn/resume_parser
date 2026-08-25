@@ -17,5 +17,5 @@ class TextExtractionError(ResumeParserError):
     """Raised when a supported document cannot be read."""
 
 
-class GeminiExtractionError(ResumeParserError):
-    """Raised when Gemini cannot return usable structured data."""
+class NLPProcessingError(ResumeParserError):
+    """Raised when the local spaCy pipeline cannot process resume text."""

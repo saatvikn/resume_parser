@@ -1,4 +1,4 @@
-"""Command-line interface for the rule-based resume parser."""
+"""Command-line interface for the local NLP resume parser."""
 
 import json
 import sys
@@ -18,7 +18,7 @@ def main():
         return 1
 
     try:
-        parsed_data = parse_resume_file(sys.argv[1], use_gemini=False)
+        parsed_data = parse_resume_file(sys.argv[1])
         save_to_json(parsed_data, output_path="output/parsed_resume.json")
     except ResumeParserError as error:
         print(f"Error: {error}", file=sys.stderr)
