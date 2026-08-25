@@ -1,3 +1,6 @@
+"""Shared resume parsing orchestration."""
+
+from src.exceptions import EmptyDocumentError
 from src.extractors.contact import (
     extract_email,
     extract_linkedin,
@@ -7,18 +10,25 @@ from src.extractors.contact import (
 from src.extractors.sections import extract_sections
 from src.extractors.skills import extract_skills
 from src.extractors.text import extract_text
-from src.utils.file_io import save_to_json
-import json
-import sys
 
-def parse_advanced_fields(file_path):
+
+def parse_resume_file(file_path, use_gemini=True):
+    """Parse a resume using Gemini or the rule-based extraction pipeline."""
     text = extract_text(file_path)
+
+    if not text or not text.strip():
+        raise EmptyDocumentError(
+            "No readable text was found in the uploaded document. "
+            "Scanned PDFs are not supported yet."
+        )
+
+    if use_gemini:
+        from src.services.gemini import extract_advanced_fields_with_gemini
+
+        return extract_advanced_fields_with_gemini(text)
+
     sections = extract_sections(text)
-
-    # print("\n=== RAW TEXT ===")
-    # print(text)
-
-    data = {
+    return {
         "name": extract_name(text),
         "email": extract_email(text),
         "phone": extract_phone(text),
@@ -27,20 +37,5 @@ def parse_advanced_fields(file_path):
         "experience": sections.get("experience", []),
         "skills": extract_skills(sections.get("skills", [])),
         "certifications": sections.get("certifications", []),
-        "projects": sections.get("projects", [])
+        "projects": sections.get("projects", []),
     }
-
-    return data
-
-if __name__ == "__main__":
-
-    file_path = sys.argv[1]
-    parsed_data = parse_advanced_fields(file_path)
-
-    # Print in terminal
-    print("\n=== Parsed Data ===")
-    print(json.dumps(parsed_data, indent=4))
-
-    # Save to JSON file
-    save_to_json(parsed_data, output_path="output/parsed_resume.json")
-    print("\n✅ Data saved to output/parsed_resume.json")

@@ -5,6 +5,8 @@ import textwrap
 import google.generativeai as genai
 from dotenv import load_dotenv
 
+from src.exceptions import GeminiExtractionError
+
 
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
@@ -16,6 +18,11 @@ model = genai.GenerativeModel(model_name="gemini-3.6-flash")
 
 def extract_advanced_fields_with_gemini(resume_text):
     """Use Gemini to extract structured fields from resume text."""
+    if not api_key:
+        raise GeminiExtractionError(
+            "GEMINI_API_KEY is not configured in the .env file."
+        )
+
     prompt = textwrap.dedent(f"""
         You are an expert resume parser. Your task is to extract structured data from the resume text.
 
@@ -96,8 +103,6 @@ def extract_advanced_fields_with_gemini(resume_text):
         return json.loads(raw_output)
 
     except Exception as error:
-        print(f"⚠️ Failed to parse Gemini response: {error}")
-        return {
-            "error": "Gemini returned no content or invalid JSON.",
-            "raw_response": raw_output if "raw_output" in locals() else "",
-        }
+        raise GeminiExtractionError(
+            "Gemini could not return valid structured resume data."
+        ) from error

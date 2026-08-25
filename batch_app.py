@@ -1,10 +1,10 @@
 import streamlit as st
 import json
-import tempfile
-import os
-from src.extractors.text import extract_text
-from src.services.gemini import extract_advanced_fields_with_gemini
 import pandas as pd
+
+from src.exceptions import ResumeParserError
+from src.parser import parse_resume_file
+from src.utils.uploads import temporary_upload
 
 st.set_page_config(page_title="Batch Resume Parser", layout="wide")
 st.title("📄 Batch Resume Parser")
@@ -22,25 +22,29 @@ uploaded_files = st.file_uploader(
 
 if uploaded_files:
     results = []
+    failures = []
+
     with st.spinner("Parsing resumes..."):
         for uploaded_file in uploaded_files:
-            suffix = os.path.splitext(uploaded_file.name)[-1]
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-                temp_file.write(uploaded_file.read())
-                temp_path = temp_file.name
+            try:
+                with temporary_upload(uploaded_file) as file_path:
+                    data = parse_resume_file(file_path, use_gemini=True)
+            except ResumeParserError as error:
+                failures.append((uploaded_file.name, str(error)))
+                continue
 
-            text = extract_text(temp_path)
-            data = extract_advanced_fields_with_gemini(text)
-            data['file_name'] = uploaded_file.name
+            data["file_name"] = uploaded_file.name
             results.append(data)
 
-    st.success("✅ Batch parsing complete!")
+    if results:
+        st.success(
+            f"✅ Parsed {len(results)} of {len(uploaded_files)} resumes."
+        )
 
-    # Show results per file
+    for file_name, error_message in failures:
+        st.warning(f"Could not parse {file_name}: {error_message}")
+
     for result in results:
-        # with st.expander(f"📄 {result.get('file_name', 'Resume')}"):
-        #     st.json(result)
-
         with st.expander(f"📄 {result.get('file_name', 'Resume')}"):
             st.write("### Basic Info")
             st.write(f"**Name:** {result.get('name', 'N/A')}")
@@ -77,28 +81,14 @@ if uploaded_files:
                     **Location:** {exp.get('location', 'N/A')}
                     """)
 
-                responsibilities = exp.get('responsibilities', [])
-                if responsibilities:
-                    st.write("**Responsibilities:**")
-                    for resp in responsibilities:
-                        st.markdown(f"- {resp}")
-                st.markdown("---")
+                    responsibilities = exp.get('responsibilities', [])
+                    if responsibilities:
+                        st.write("**Responsibilities:**")
+                        for resp in responsibilities:
+                            st.markdown(f"- {resp}")
+                    st.markdown("---")
             else:
                 st.write("No experience details found.")
-
-            # # Work Experience
-            # experience = result.get('work_experience', [])
-            # if experience:
-            #     st.write("### Work Experience")
-
-            #     # Clean responsibilities for display
-            #     for exp in experience:
-            #         if isinstance(exp.get('responsibilities'), list):
-            #              exp['responsibilities'] = "\n".join(exp['responsibilities'])
-
-            #     st.table(pd.DataFrame(experience))
-            # else:
-            #     st.write("No experience details found.")
 
             # Projects
             projects = result.get('projects', [])
@@ -108,11 +98,11 @@ if uploaded_files:
             else:
                 st.write("No project details found.")
 
-    # Download all results as combined JSON
-    combined_json = json.dumps(results, indent=4)
-    st.download_button(
-        label="📥 Download All Results as JSON",
-        data=combined_json,
-        file_name="batch_parsed_results.json",
-        mime="application/json"
-    )
+    if results:
+        combined_json = json.dumps(results, indent=4)
+        st.download_button(
+            label="📥 Download All Results as JSON",
+            data=combined_json,
+            file_name="batch_parsed_results.json",
+            mime="application/json",
+        )
