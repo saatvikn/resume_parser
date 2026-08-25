@@ -1,7 +1,13 @@
-from utils import (
-    extract_text, extract_name, extract_email, extract_phone,
-    extract_linkedin, extract_sections, extract_skills, save_to_json
+from src.extractors.contact import (
+    extract_email,
+    extract_linkedin,
+    extract_name,
+    extract_phone,
 )
+from src.extractors.sections import extract_sections
+from src.extractors.skills import extract_skills
+from src.extractors.text import extract_text
+from src.utils.file_io import save_to_json
 import json
 import sys
 

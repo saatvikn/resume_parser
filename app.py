@@ -1,11 +1,15 @@
 import streamlit as st
 import json
-from utils import (
-    extract_text, extract_name, extract_email, extract_phone,
-    extract_linkedin, extract_sections, extract_skills
+from src.extractors.contact import (
+    extract_email,
+    extract_linkedin,
+    extract_name,
+    extract_phone,
 )
-
-from utils_gemini import extract_advanced_fields_with_gemini
+from src.extractors.sections import extract_sections
+from src.extractors.skills import extract_skills
+from src.extractors.text import extract_text
+from src.services.gemini import extract_advanced_fields_with_gemini
 
 import tempfile
 import os

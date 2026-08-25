@@ -40,8 +40,10 @@ The web applications currently use Google's Gemini API for structured extraction
 |-- app.py              # Single-resume Streamlit application
 |-- batch_app.py        # Multiple-resume Streamlit application
 |-- resume_parser.py    # Rule-based command-line parser
-|-- utils.py            # Text extraction and rule-based parsing utilities
-|-- utils_gemini.py     # Gemini extraction service
+|-- src/
+|   |-- extractors/     # Text, contact, section, and skill extraction
+|   |-- services/       # External service integrations
+|   `-- utils/          # Shared file utilities
 |-- requirements.txt    # Python dependencies
 |-- .env.example        # Example API-key configuration
 `-- README.md
@@ -156,7 +158,7 @@ Upload multiple PDF or DOCX files. The application displays each candidate separ
 python resume_parser.py path\to\resume.pdf
 ```
 
-This command does not use Gemini. It uses the regular expressions and section parser in `utils.py`, prints the extracted data, and saves it to:
+This command does not use Gemini. It uses the regular expressions and section extractors in `src/extractors`, prints the extracted data, and saves it to:
 
 ```text
 output/parsed_resume.json
@@ -193,7 +195,7 @@ The `resumes/`, `output/`, `.env`, `venv/`, and `plan.md` paths are ignored by G
 
 ## Current Limitations
 
-- spaCy is installed and loaded by the legacy utility module, but the current extraction path does not perform spaCy NER yet.
+- spaCy is installed, but the current extraction path does not perform spaCy NER yet.
 - Gemini is currently the main extraction engine for both Streamlit applications.
 - The batch parser processes files sequentially.
 - Scanned or image-only PDFs are not supported because OCR is not implemented.

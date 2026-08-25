@@ -2,8 +2,8 @@ import streamlit as st
 import json
 import tempfile
 import os
-from utils import extract_text
-from utils_gemini import extract_advanced_fields_with_gemini
+from src.extractors.text import extract_text
+from src.services.gemini import extract_advanced_fields_with_gemini
 import pandas as pd
 
 st.set_page_config(page_title="Batch Resume Parser", layout="wide")
