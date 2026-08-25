@@ -22,9 +22,9 @@ GitPython==3.1.44
 google-ai-generativelanguage==0.6.15
 google-api-core==2.25.1
 google-api-python-client==2.173.0
-google-auth==2.40.3
+google-auth==2.57.0
 google-auth-httplib2==0.2.0
-google-generativeai==0.8.5
+google-genai==2.19.0
 googleapis-common-protos==1.70.0
 grpcio==1.73.0
 grpcio-status==1.71.0
@@ -56,8 +56,8 @@ pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.22
 pycryptodome==3.23.0
-pydantic==2.11.7
-pydantic_core==2.33.2
+pydantic==2.13.4
+pydantic_core==2.46.4
 pydeck==0.9.1
 Pygments==2.19.2
 pyparsing==3.2.3
@@ -89,8 +89,8 @@ toml==0.10.2
 tornado==6.5.1
 tqdm==4.67.1
 typer==0.16.0
-typing-inspection==0.4.1
-typing_extensions==4.14.0
+typing-inspection==0.4.4
+typing_extensions==4.16.0
 tzdata==2025.2
 uritemplate==4.2.0
 urllib3==2.5.0

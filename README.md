@@ -28,6 +28,7 @@ The web applications currently use Google's Gemini API for structured extraction
 - Python 3.12
 - Streamlit
 - Google Gemini (`gemini-3.6-flash`)
+- Google GenAI SDK with JSON Schema structured output
 - PDFMiner
 - docx2txt
 - pandas
@@ -236,10 +237,8 @@ The PDF may contain scanned images instead of embedded text. OCR support has not
 
 The next development stages are:
 
-1. Refactor parsing logic out of the Streamlit files and add automated tests.
-2. Migrate to the current Google GenAI SDK with Pydantic structured output.
-3. Implement a genuine spaCy NLP pipeline with NER, PhraseMatcher, section context, evidence, and evaluation metrics.
-4. Add explainable resume-to-job matching with skill normalization and TF-IDF similarity.
+1. Implement a genuine spaCy NLP pipeline with NER, PhraseMatcher, section context, evidence, and evaluation metrics.
+2. Add explainable resume-to-job matching with skill normalization and TF-IDF similarity.
 
 ## Responsible Use
 
