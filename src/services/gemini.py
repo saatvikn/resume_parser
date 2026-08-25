@@ -1,33 +1,27 @@
-import google.generativeai as genai
-import os
-from dotenv import load_dotenv
 import json
+import os
 import textwrap
 
-# Load environment variables from .env file
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+from src.exceptions import GeminiExtractionError
+
+
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 
-# Load API key from env variable
 genai.configure(api_key=api_key)
 
-# Create gemini model 
 model = genai.GenerativeModel(model_name="gemini-3.6-flash")
 
+
 def extract_advanced_fields_with_gemini(resume_text):
-
-    # for m in genai.list_models():
-    #     print(m.name)
-
-    # prompt = textwrap.dedent(f"""
-    #     You are an expert resume parser. Your task is to extract the following fields in JSON format:
-    #     "Skills", "Education", "Work Experience", and "Projects".
-
-    #     Resume:
-    #     === START ===
-    #     {resume_text}
-    #     === END ===
-    # """)
+    """Use Gemini to extract structured fields from resume text."""
+    if not api_key:
+        raise GeminiExtractionError(
+            "GEMINI_API_KEY is not configured in the .env file."
+        )
 
     prompt = textwrap.dedent(f"""
         You are an expert resume parser. Your task is to extract structured data from the resume text.
@@ -98,22 +92,17 @@ def extract_advanced_fields_with_gemini(resume_text):
 
     try:
         response = model.generate_content(prompt)
-
-        # Check if empty
         raw_output = response.text.strip()
-        
+
         if not raw_output:
             raise ValueError("Gemini returned an empty response.")
 
-        # Remove ```json wrapper if present
         if raw_output.startswith("```json"):
             raw_output = raw_output.replace("```json", "").replace("```", "").strip()
 
         return json.loads(raw_output)
 
-    except Exception as e:
-        print(f"⚠️ Failed to parse Gemini response: {e}")
-        return {
-            "error": "Gemini returned no content or invalid JSON.",
-            "raw_response": raw_output if 'raw_output' in locals() else ""
-        }
+    except Exception as error:
+        raise GeminiExtractionError(
+            "Gemini could not return valid structured resume data."
+        ) from error

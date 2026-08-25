@@ -39,9 +39,13 @@ The web applications currently use Google's Gemini API for structured extraction
 .
 |-- app.py              # Single-resume Streamlit application
 |-- batch_app.py        # Multiple-resume Streamlit application
-|-- resume_parser.py    # Rule-based command-line parser
-|-- utils.py            # Text extraction and rule-based parsing utilities
-|-- utils_gemini.py     # Gemini extraction service
+|-- resume_cli.py       # Rule-based command-line interface
+|-- src/
+|   |-- extractors/     # Text, contact, section, and skill extraction
+|   |-- services/       # External service integrations
+|   |-- utils/          # File and upload utilities
+|   |-- exceptions.py   # Application-specific exceptions
+|   `-- parser.py       # Shared parsing workflow
 |-- requirements.txt    # Python dependencies
 |-- .env.example        # Example API-key configuration
 `-- README.md
@@ -153,10 +157,10 @@ Upload multiple PDF or DOCX files. The application displays each candidate separ
 ### Run the rule-based command-line parser
 
 ```powershell
-python resume_parser.py path\to\resume.pdf
+python resume_cli.py path\to\resume.pdf
 ```
 
-This command does not use Gemini. It uses the regular expressions and section parser in `utils.py`, prints the extracted data, and saves it to:
+This command does not use Gemini. It uses the regular expressions and section extractors in `src/extractors`, prints the extracted data, and saves it to:
 
 ```text
 output/parsed_resume.json
@@ -193,13 +197,12 @@ The `resumes/`, `output/`, `.env`, `venv/`, and `plan.md` paths are ignored by G
 
 ## Current Limitations
 
-- spaCy is installed and loaded by the legacy utility module, but the current extraction path does not perform spaCy NER yet.
+- spaCy is installed, but the current extraction path does not perform spaCy NER yet.
 - Gemini is currently the main extraction engine for both Streamlit applications.
 - The batch parser processes files sequentially.
 - Scanned or image-only PDFs are not supported because OCR is not implemented.
 - Resume layouts and model responses can affect extraction accuracy.
 - The project does not currently include automated tests or an evaluation dataset.
-- Temporary upload-file cleanup and stronger UI error handling are planned improvements.
 
 ## Troubleshooting
 
