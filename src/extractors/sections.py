@@ -7,11 +7,17 @@ SECTION_ALIASES = {
     "education": {
         "education",
         "academic background",
+        # Used by the tabular BITS resume in the local sample set.
+        "academic details",
         "academic qualifications",
         "qualifications",
     },
     "experience": {
         "experience",
+        "internship experience",
+        "summer internship",
+        # This combined heading was previously discarded as an unknown section.
+        "summer internship / work experience",
         "work experience",
         "professional experience",
         "employment history",
@@ -74,7 +80,7 @@ PUBLIC_SECTION_NAMES = {
     "leadership": "positions_of_responsibility",
 }
 
-TOP_LEVEL_BULLET_PATTERN = re.compile(r"^\s*[•▪]\s+")
+TOP_LEVEL_BULLET_PATTERN = re.compile(r"^\s*[•▪](?:\s+|$)")
 INSTITUTION_PATTERN = re.compile(
     r"\b(?:academy|college|institute|school|university)\b",
     re.IGNORECASE,
@@ -82,27 +88,33 @@ INSTITUTION_PATTERN = re.compile(
 
 
 def _normalized_heading(line):
-    """Return comparable heading text without accepting bullet entries."""
     stripped_line = line.strip()
     if not stripped_line or TOP_LEVEL_BULLET_PATTERN.match(stripped_line):
         return ""
     return re.sub(r"\s+", " ", stripped_line).rstrip(":").strip().casefold()
 
 
+def _looks_like_table_header(line):
+    stripped_line = line.strip()
+    # Column labels such as "COURSE | INSTITUTE | SCORE" sit inside a section.
+    # Treating them as generic headings caused the rows below them to disappear.
+    return "|" in stripped_line and stripped_line.isupper()
+
+
 def _looks_like_generic_heading(line):
-    """Recognize short all-uppercase headings as section boundaries."""
     stripped_line = line.strip().rstrip(":").strip()
     words = stripped_line.split()
     return (
         1 <= len(words) <= 7
         and len(stripped_line) <= 60
+        and "|" not in stripped_line
+        and not any(character.isdigit() for character in stripped_line)
         and any(character.isalpha() for character in stripped_line)
         and stripped_line.isupper()
     )
 
 
 def identify_section_heading(line):
-    """Return the canonical section name for a heading-like line."""
     normalized_line = _normalized_heading(line)
 
     for section_name, aliases in SECTION_ALIASES.items():
@@ -116,7 +128,6 @@ def identify_section_heading(line):
 
 
 def public_section_name(section_name):
-    """Translate an internal section name to its public output name."""
     if not section_name or section_name == "other":
         return None
     return PUBLIC_SECTION_NAMES.get(section_name, section_name)
@@ -140,12 +151,55 @@ def section_for_offset(text, character_offset):
     return public_section_name(current_section)
 
 
+def _starts_with_job_title(line):
+    from src.nlp.patterns import JOB_TITLE_PHRASES, clean_bullet
+
+    cleaned_line = clean_bullet(line).casefold()
+    if len(cleaned_line.split()) > 18:
+        return False
+
+    return any(
+        re.match(rf"^{re.escape(job_title)}(?:\b|\s*[|,–—-])", cleaned_line)
+        for job_title in JOB_TITLE_PHRASES
+    )
+
+
+def _looks_like_dated_header(line):
+    from src.nlp.patterns import DATE_RANGE_PATTERN, clean_bullet
+
+    return (
+        len(clean_bullet(line).split()) <= 24
+        and DATE_RANGE_PATTERN.search(line) is not None
+    )
+
+
+def _looks_like_project_header(line):
+    if _looks_like_dated_header(line):
+        return True
+    if not TOP_LEVEL_BULLET_PATTERN.match(line):
+        return False
+
+    from src.nlp.patterns import clean_bullet
+
+    header, separator, _ = clean_bullet(line).partition(":")
+    return bool(separator) and 1 <= len(header.split()) <= 12
+
+
 def _starts_new_record(section_name, line, current_block):
-    """Decide whether a line begins a new record in the current section."""
     if not current_block:
         return False
-    if TOP_LEVEL_BULLET_PATTERN.match(line):
-        return section_name not in {"skills"}
+
+    # Real resumes in the sample set use the same `•` marker for record
+    # headers and descriptions. Section-specific signals avoid turning every
+    # responsibility into a separate job, project, or leadership position.
+    if section_name == "experience":
+        return _starts_with_job_title(line)
+    if section_name == "projects":
+        return _looks_like_project_header(line)
+    if section_name == "leadership":
+        return _looks_like_dated_header(line)
+    if section_name == "certifications":
+        return TOP_LEVEL_BULLET_PATTERN.match(line) is not None
     if (
         section_name == "education"
         and not line.lstrip().startswith("(")
@@ -172,6 +226,9 @@ def extract_section_blocks(text):
 
     for raw_line in text.splitlines():
         line = raw_line.strip()
+        if _looks_like_table_header(line):
+            continue
+
         detected_section = identify_section_heading(line)
 
         if detected_section:
@@ -190,7 +247,6 @@ def extract_section_blocks(text):
 
 
 def extract_sections(text):
-    """Group resume lines under recognized section headings."""
     section_blocks = extract_section_blocks(text)
 
     return {

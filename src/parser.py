@@ -9,10 +9,8 @@ from src.extractors.contact import (
     extract_phone,
 )
 from src.extractors.sections import extract_section_blocks
-from src.extractors.skills import extract_skills
 from src.extractors.text import extract_text
 from src.nlp import analyze_resume_text
-from src.nlp.skills import canonicalize_skill_values
 from src.nlp.structured import (
     extract_certifications,
     extract_education,
@@ -23,7 +21,6 @@ from src.nlp.structured import (
 
 
 def _merge_unique_values(*value_groups):
-    """Combine string collections without losing their original order."""
     merged_values = []
     seen_values = set()
 
@@ -45,7 +42,6 @@ def _merge_unique_values(*value_groups):
 
 
 def _first_person_candidate(nlp_analysis):
-    """Return the earliest person entity near the resume header."""
     people = nlp_analysis["entities"]["people"]
     header_people = [person for person in people if person["start"] < 500]
     candidates = header_people or people
@@ -53,7 +49,6 @@ def _first_person_candidate(nlp_analysis):
 
 
 def _extract_candidate_name(text, nlp_analysis):
-    """Prefer the resume header, then fall back to a PERSON entity."""
     return extract_name(text) or _first_person_candidate(nlp_analysis)
 
 
@@ -79,22 +74,13 @@ def parse_resume_text(text):
         }
     ]
 
-    skill_lines = [
-        line
-        for block in section_blocks["skills"]
-        for line in block
-    ]
-    section_skills = canonicalize_skill_values(
-        extract_skills(skill_lines)
-    )
-
     return {
         "name": _extract_candidate_name(text, nlp_analysis),
         "email": extract_email(text),
         "phone": extract_phone(text),
         "linkedin": extract_linkedin(text),
         "github": extract_github(text),
-        "skills": _merge_unique_values(section_skills, nlp_skills),
+        "skills": _merge_unique_values(nlp_skills),
         "education": extract_education(
             section_blocks["education"], nlp_analysis
         ),

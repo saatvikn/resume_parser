@@ -22,29 +22,6 @@ def load_skill_taxonomy():
 
 
 @lru_cache(maxsize=1)
-def get_skill_aliases():
-    """Map normalized aliases to their canonical skill names."""
-    aliases = {}
-
-    for canonical_name, skill_aliases in load_skill_taxonomy().items():
-        aliases[canonical_name.casefold()] = canonical_name
-        for alias in skill_aliases:
-            aliases[alias.casefold()] = canonical_name
-
-    return aliases
-
-
-def canonicalize_skill_values(values):
-    """Normalize known aliases while preserving unknown skill values."""
-    aliases = get_skill_aliases()
-    return [
-        aliases.get(value.strip().casefold(), value.strip())
-        for value in values or []
-        if isinstance(value, str) and value.strip()
-    ]
-
-
-@lru_cache(maxsize=1)
 def get_skill_matcher():
     """Build and reuse a case-insensitive skill phrase matcher."""
     nlp = get_nlp()

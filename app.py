@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 import re
 
-import pandas as pd
 import streamlit as st
 
 from src.exceptions import ResumeParserError
@@ -14,7 +13,7 @@ from src.parser import parse_resume_file
 from src.utils.uploads import temporary_upload
 
 
-PARSER_CACHE_VERSION = "layout-aware-v2"
+PARSER_CACHE_VERSION = "phrase-matcher-only-v3"
 
 
 st.set_page_config(
@@ -76,12 +75,10 @@ st.markdown(
 
 
 def _display(value):
-    """Return a readable placeholder for a missing scalar value."""
     return value if value else "Not detected"
 
 
 def _render_skill_chips(skills):
-    """Render escaped skill values as compact visual chips."""
     if not skills:
         st.caption("No skills detected.")
         return
@@ -94,7 +91,6 @@ def _render_skill_chips(skills):
 
 
 def _render_overview(result):
-    """Render contact information, skills, and certifications."""
     st.subheader(_display(result.get("name")))
     st.caption(result.get("file_name", "Resume"))
 
@@ -120,7 +116,10 @@ def _render_overview(result):
     certifications = result.get("certifications", [])
     if certifications:
         st.dataframe(
-            pd.DataFrame(certifications, columns=["Certification"]),
+            [
+                {"Certification": certification}
+                for certification in certifications
+            ],
             hide_index=True,
             use_container_width=True,
         )
@@ -129,7 +128,6 @@ def _render_overview(result):
 
 
 def _render_experience(result):
-    """Render structured work-experience records."""
     experience_records = result.get("work_experience", [])
     if not experience_records:
         st.info("No structured work experience was detected.")
@@ -164,7 +162,6 @@ def _render_experience(result):
 
 
 def _render_education_and_projects(result):
-    """Render education and project records in separate columns."""
     education_column, projects_column = st.columns(2, gap="large")
 
     with education_column:
@@ -222,7 +219,6 @@ def _render_education_and_projects(result):
 
 
 def _render_positions_of_responsibility(result):
-    """Render leadership and responsibility records."""
     positions = result.get("positions_of_responsibility", [])
     if not positions:
         st.info("No positions of responsibility were detected.")
@@ -253,7 +249,6 @@ def _render_positions_of_responsibility(result):
 
 
 def _entity_rows(result):
-    """Flatten grouped NLP entities for tabular display."""
     rows = []
     entities = result.get("nlp_analysis", {}).get("entities", {})
 
@@ -273,7 +268,6 @@ def _entity_rows(result):
 
 
 def _render_nlp_evidence(result):
-    """Render the evidence produced by spaCy and PhraseMatcher."""
     st.info(
         "This view shows why values were detected. Character offsets refer "
         "to positions in the extracted resume text."
@@ -286,7 +280,7 @@ def _render_nlp_evidence(result):
     st.markdown("### Skill evidence")
     if skill_matches:
         st.dataframe(
-            pd.DataFrame(skill_matches),
+            skill_matches,
             hide_index=True,
             use_container_width=True,
         )
@@ -296,7 +290,7 @@ def _render_nlp_evidence(result):
     st.markdown("### Named entities")
     if entity_rows:
         st.dataframe(
-            pd.DataFrame(entity_rows),
+            entity_rows,
             hide_index=True,
             use_container_width=True,
         )
@@ -308,14 +302,12 @@ def _render_nlp_evidence(result):
 
 
 def _download_file_name(source_name):
-    """Create a safe JSON filename from an uploaded filename."""
     source_stem = Path(source_name).stem
     safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", source_stem).strip("_.")
     return f"{safe_stem or 'resume'}_parsed.json"
 
 
 def _upload_signature(uploaded_files):
-    """Create a stable signature so widget reruns do not repeat NLP work."""
     digest = hashlib.sha256()
     digest.update(PARSER_CACHE_VERSION.encode("utf-8"))
 
@@ -367,18 +359,10 @@ if not uploaded_files:
     ):
         st.session_state.pop(state_key, None)
 
-    st.info("Upload at least one PDF or DOCX resume to begin.")
-    feature_columns = st.columns(3)
-    feature_content = (
-        ("🔎 Explainable extraction", "Review entity and skill evidence."),
-        ("📚 Structured output", "Inspect experience, education, and projects."),
-        ("⬇️ Flexible export", "Download one result or every result as JSON."),
+    st.info(
+        "Upload at least one PDF or DOCX resume to extract structured data "
+        "and download it as JSON."
     )
-    for column, (title, description) in zip(feature_columns, feature_content):
-        with column:
-            with st.container(border=True):
-                st.markdown(f"**{title}**")
-                st.caption(description)
     st.stop()
 
 upload_signature = _upload_signature(uploaded_files)
@@ -463,23 +447,21 @@ with download_all_column:
         help="Upload multiple resumes to enable the combined download.",
     )
 
-overview_tab, experience_tab, details_tab, leadership_tab, evidence_tab = st.tabs(
-    [
-        "Overview",
-        "Experience",
-        "Education & projects",
-        "Leadership",
-        "NLP evidence",
-    ]
+summary_tab, resume_tab, nlp_tab = st.tabs(
+    ["Summary", "Resume details", "NLP details"]
 )
 
-with overview_tab:
+with summary_tab:
     _render_overview(selected_result)
-with experience_tab:
+
+with resume_tab:
+    st.subheader("Work experience")
     _render_experience(selected_result)
-with details_tab:
+    st.divider()
     _render_education_and_projects(selected_result)
-with leadership_tab:
+    st.divider()
+    st.subheader("Positions of responsibility")
     _render_positions_of_responsibility(selected_result)
-with evidence_tab:
+
+with nlp_tab:
     _render_nlp_evidence(selected_result)

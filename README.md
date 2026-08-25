@@ -1,79 +1,138 @@
-# NLP Resume Parser with spaCy and Streamlit
+# NLP Resume Parser
 
-A local Python application that extracts structured information from PDF and DOCX resumes. It provides one unified Streamlit interface for parsing one or many resumes, a command-line interface, and downloadable JSON output.
+A local PDF/DOCX resume parser built with Python, spaCy, regex, and Streamlit. It extracts contact details, skills, education, work experience, projects, certifications, and positions of responsibility into structured JSON.
 
-The parser uses a deterministic NLP pipeline: regular expressions for contact details and dates, spaCy named-entity recognition, an EntityRuler for resume-specific entities, a PhraseMatcher with a normalized skills taxonomy, and section-aware rules for education, experience, projects, and certifications. Resume contents are not sent to an external AI service.
+The project does not call Gemini or another generative-AI API. The Streamlit app and command-line interface both use the same parser in `src/parser.py`.
 
 ## Features
 
-- Upload PDF and DOCX resumes.
-- Parse one resume or multiple resumes from the same interface.
-- Extract email, phone, LinkedIn, and GitHub information with regular expressions.
-- Preserve multi-column PDF reading order with layout-aware extraction.
-- Detect people, organizations, locations, and dates with spaCy NER.
-- Detect resume-specific degrees, job titles, and certifications with spaCy EntityRuler patterns.
-- Normalize skills and aliases with spaCy PhraseMatcher and `data/skills.json`.
-- Build structured education, work-experience, project, leadership, and certification records.
-- Attach character offsets and resume-section context to NLP evidence.
-- Review results in Streamlit and download them as JSON.
-- Run the same parsing pipeline from the command line.
+- Parse one or several PDF/DOCX resumes.
+- Preserve multi-column PDF text with layout-aware extraction.
+- Extract contact fields with regex and header rules.
+- Detect general entities with spaCy NER.
+- Detect degrees, job titles, and certifications with EntityRuler.
+- Normalize skill aliases with PhraseMatcher and `data/skills.json`.
+- Show source text, character offsets, and section evidence.
+- Download individual or batch results as JSON.
 
-## Technology Stack
+## Processing Workflow
 
-- Python 3.12
-- spaCy with `en_core_web_sm`
-- Streamlit
-- pdfplumber with PDFMiner
-- docx2txt
-- pandas
-- Python regular expressions
+```text
+PDF / DOCX
+    |
+    v
+Text extraction and normalization
+    |
+    v
+Section detection and record grouping
+    |
+    +--> Regex: contacts, URLs, grades, date ranges
+    +--> spaCy NER: people, organizations, locations, dates
+    +--> EntityRuler: degrees, job titles, certifications
+    +--> PhraseMatcher: normalized skills
+    |
+    v
+Section-aware structured extractors
+    |
+    v
+Streamlit / CLI / JSON
+```
+
+1. `pdfplumber` extracts PDF text in visual reading order; `docx2txt` handles DOCX files.
+2. Heading aliases identify education, experience, skills, projects, leadership, and certification sections.
+3. Section content is grouped into records using job-title, date, institution, and bullet-layout signals.
+4. The resume text is processed once by the cached spaCy pipeline.
+5. Regex and NLP evidence are combined to build structured records.
+6. Streamlit or the CLI presents the same parser output.
+
+## How spaCy Is Used
+
+spaCy is the NLP library; `en_core_web_sm` is the pretrained English model. Calling `nlp(text)` returns a `Doc` containing tokens, named entities, and character offsets.
+
+### Pretrained NER
+
+The English model supplies general entities:
+
+| Label | Used for |
+|---|---|
+| `PERSON` | Candidate-name fallback |
+| `ORG` | Companies and institutions |
+| `GPE`, `LOC` | Cities and locations |
+| `DATE` | Employment and education dates |
+
+### EntityRuler
+
+The general model has no resume-specific labels for degrees or job titles. `src/nlp/model.py` adds an EntityRuler after NER with patterns from `src/nlp/patterns.py`:
+
+```text
+Bachelor of Technology       -> DEGREE
+Software Engineering Intern  -> JOB_TITLE
+AWS Certified Developer      -> CERTIFICATION
+```
+
+### PhraseMatcher
+
+`src/nlp/skills.py` builds a case-insensitive PhraseMatcher from `data/skills.json`. Aliases are returned as one canonical value:
+
+```json
+{
+  "Python": ["python", "python3"],
+  "Natural Language Processing": ["natural language processing", "nlp"]
+}
+```
+
+A match keeps both the normalized name and its evidence:
+
+```json
+{
+  "name": "Python",
+  "text": "python3",
+  "start": 412,
+  "end": 419,
+  "section": "skills"
+}
+```
+
+The spaCy model and matchers are cached, so batch parsing does not reload them for every resume.
+
+## Rules Added From Real Failures
+
+The section parser was adjusted after reviewing four resume layouts:
+
+- `ACADEMIC DETAILS` is treated as education.
+- `SUMMER INTERNSHIP / WORK EXPERIENCE` is treated as experience.
+- Uppercase table headers such as `COURSE | INSTITUTE | SCORE` do not end the active section.
+- A `•` bullet is not automatically a new record because some resumes use the same bullet for project headers and responsibility lines.
+- Experience records use known job-title headers; project and leadership records use date or compact header signals.
+
+These are deterministic layout heuristics, not claims that every resume format is supported.
 
 ## Project Structure
 
 ```text
-.
-|-- app.py                 # Unified one-or-many resume Streamlit application
-|-- resume_cli.py          # Command-line application
-|-- data/
-|   `-- skills.json        # Canonical skills and aliases
-|-- src/
-|   |-- extractors/        # Text, contact, section, and skill extraction
-|   |-- nlp/
-|   |   |-- structured/    # Education, experience, project, certification extraction
-|   |   |-- entities.py    # Named-entity normalization
-|   |   |-- model.py       # Cached spaCy model and EntityRuler
-|   |   |-- patterns.py    # Resume phrases and regular expressions
-|   |   |-- pipeline.py    # NLP orchestration
-|   |   `-- skills.py      # PhraseMatcher skill extraction
-|   |-- utils/             # File and upload utilities
-|   |-- exceptions.py      # Application-specific exceptions
-|   `-- parser.py          # Shared local parsing workflow
-|-- requirements.txt       # Direct Python dependencies
-`-- README.md
+app.py                     Streamlit batch/single-resume interface
+resume_cli.py              Command-line interface
+data/skills.json           Canonical skill names and aliases
+src/parser.py              Shared parser orchestration
+src/extractors/            Text, contact, and section extraction
+src/nlp/model.py           Cached spaCy model and EntityRuler
+src/nlp/entities.py        Entity filtering and section evidence
+src/nlp/skills.py          PhraseMatcher skill extraction
+src/nlp/patterns.py        Resume phrases and regex patterns
+src/nlp/structured/        Structured record builders
 ```
 
 ## Installation
 
-### 1. Clone the repository
+Python 3.12 is recommended.
 
 ```powershell
 git clone https://github.com/saatvikn/resume_parser.git
 cd resume_parser
-```
 
-### 2. Create and activate a virtual environment
-
-```powershell
 py -3.12 -m venv venv
 .\venv\Scripts\Activate.ps1
-```
 
-The terminal prompt should now start with `(venv)`. If PowerShell blocks activation, you can use `.\venv\Scripts\python.exe` in place of `python` in the commands below.
-
-### 3. Install dependencies
-
-```powershell
-python -m pip install --upgrade pip setuptools wheel
 python -m pip install -r requirements.txt
 python -m pip check
 ```
@@ -82,23 +141,23 @@ No API key or `.env` file is required.
 
 ## Usage
 
-### Run the Streamlit application
+Run the Streamlit app:
 
 ```powershell
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
-Open the local URL shown by Streamlit and upload one or more PDF/DOCX resumes. The application provides processing progress, summary metrics, structured result tabs, NLP evidence, individual JSON downloads, and a combined download when several resumes are uploaded.
+The interface has three views: summary, structured resume details, and NLP evidence.
 
-### Use the command line
+Run the CLI:
 
 ```powershell
 python resume_cli.py path\to\resume.pdf
 ```
 
-The result is printed and saved to `output/parsed_resume.json`.
+The CLI prints the parsed result and saves `output/parsed_resume.json`.
 
-## Output Shape
+## Output
 
 ```json
 {
@@ -108,25 +167,8 @@ The result is printed and saved to `output/parsed_resume.json`.
   "linkedin": "https://linkedin.com/in/candidate",
   "github": "https://github.com/candidate",
   "skills": ["Python", "spaCy", "SQL"],
-  "education": [
-    {
-      "institution": "Example University",
-      "degree": "Bachelor of Technology",
-      "grade": "CGPA: 8.5/10",
-      "graduation_date": "2025",
-      "location": "Bengaluru"
-    }
-  ],
-  "work_experience": [
-    {
-      "company": "Example Company",
-      "job_title": "Software Engineering Intern",
-      "start_date": "Jan 2024",
-      "end_date": "Jun 2024",
-      "location": "Bengaluru",
-      "responsibilities": ["Built a Python data-processing pipeline."]
-    }
-  ],
+  "education": [],
+  "work_experience": [],
   "projects": [],
   "positions_of_responsibility": [],
   "certifications": [],
@@ -137,61 +179,33 @@ The result is printed and saved to `output/parsed_resume.json`.
 }
 ```
 
-`nlp_analysis` preserves the evidence used by the parser, including the original matched text, normalized skill names, character offsets, and section labels.
+`nlp_analysis` exposes the evidence used by the parser instead of hiding the extraction process.
 
-## How the Pipeline Works
+## Current Status
 
-1. pdfplumber preserves PDF line and column order; docx2txt handles DOCX files.
-2. Section detection recognizes both extracted and boundary-only headings.
-3. Top-level bullets start records and nested bullets remain attached as evidence.
-4. Regular expressions extract contact fields, URLs, dates, ranges, and grades.
-5. spaCy NER, EntityRuler, and PhraseMatcher produce contextual entities and normalized skills.
-6. Section-aware extractors build consistent education, experience, project, leadership, and certification objects.
+The parser runs locally on the four development resumes and the main structural counts have been manually reviewed. This is a smoke check, not an accuracy benchmark.
 
-## Privacy and Responsible Use
+The next step is to annotate a privacy-safe evaluation set and measure precision, recall, F1, and parsing latency by field. Accuracy numbers should not be added to a resume until that evaluation exists.
 
-Processing is local and no resume text is sent to an external AI API. Resumes still contain personal information, so use synthetic or redacted documents for demonstrations, obtain permission before processing someone else's resume, and do not commit resumes or generated output.
+## Limitations
 
-This project is intended for document parsing and decision support. It should not make automatic hiring decisions or rank candidates using protected personal attributes. Results should be reviewed by a person.
+- `en_core_web_sm` is a general English model and can misclassify resume-specific text.
+- Rule coverage depends on the headings, phrases, and skill aliases currently configured.
+- Unusual PDF layouts can still produce incorrect reading order or record grouping.
+- Scanned/image-only PDFs require OCR, which is not implemented.
+- Batch files are processed sequentially.
+- Automatic hiring decisions and protected-attribute scoring are outside the project scope.
 
-## Current Limitations
+## Privacy
 
-- `en_core_web_sm` is a general English model, so it can miss or misclassify resume-specific entities.
-- Entity coverage depends on the phrases in `src/nlp/patterns.py` and aliases in `data/skills.json`.
-- Section extraction depends on recognizable headings and reasonably ordered text.
-- Highly graphical or unusually positioned PDF elements may still need layout-specific handling.
-- Scanned or image-only PDFs are unsupported because OCR is not implemented.
-- Multiple uploaded files are processed sequentially.
-- The project does not yet include an annotated evaluation dataset or automated tests.
+Resume text is processed locally and is not sent to an external API. Use synthetic or redacted resumes for demonstrations, obtain permission before processing someone else's resume, and do not commit resume files or generated output.
 
 ## Troubleshooting
 
-### PowerShell blocks virtual-environment activation
-
-Run Streamlit through the environment's Python executable:
+If PowerShell blocks environment activation, call the environment's interpreter directly:
 
 ```powershell
 .\venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-### The spaCy model is missing
-
-Install all project dependencies again:
-
-```powershell
-python -m pip install -r requirements.txt
-```
-
-### A virtual-environment file is locked
-
-Stop Streamlit with `Ctrl+C` and close editors or terminals using the environment before deleting or recreating `venv`.
-
-### PDF parsing returns no text
-
-The PDF may contain scanned images instead of embedded text. Convert it with OCR before uploading it.
-
-## Suggested Next Steps
-
-1. Create a small annotated evaluation set and report precision, recall, and F1 for each extracted field.
-2. Expand job-title, degree, certification, and skill patterns from evaluation errors.
-3. Add explainable resume-to-job matching with normalized skill overlap and TF-IDF similarity.
+If a PDF produces no text, it is probably scanned and must be converted with OCR before upload.

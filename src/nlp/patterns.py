@@ -82,7 +82,6 @@ CERTIFICATION_PHRASES = [
 
 
 def entity_ruler_patterns():
-    """Return case-insensitive phrase patterns for spaCy EntityRuler."""
     patterns = []
 
     for label, phrases in (
@@ -131,7 +130,6 @@ BULLET_PREFIX_PATTERN = re.compile(r"^\s*(?:[-•▪◦*]|\d+[.)])\s*")
 
 
 def find_date_range(text):
-    """Return normalized start/end dates from the first date range."""
     match = DATE_RANGE_PATTERN.search(text)
     if not match:
         return None, None
@@ -139,17 +137,14 @@ def find_date_range(text):
 
 
 def find_single_date(text):
-    """Return the first standalone month/year or year value."""
     match = SINGLE_DATE_PATTERN.search(text)
     return match.group(0).strip() if match else None
 
 
 def find_grade(text):
-    """Return the first GPA, CGPA, or percentage value."""
     match = GRADE_PATTERN.search(text)
     return match.group(0).strip() if match else None
 
 
 def clean_bullet(text):
-    """Remove a common list prefix and surrounding whitespace."""
     return BULLET_PREFIX_PATTERN.sub("", text).strip()

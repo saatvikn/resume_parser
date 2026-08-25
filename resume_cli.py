@@ -9,7 +9,6 @@ from src.utils.file_io import save_to_json
 
 
 def main():
-    """Parse one resume from the command line and save the result as JSON."""
     if len(sys.argv) != 2:
         print(
             "Usage: python resume_cli.py <resume.pdf|resume.docx>",

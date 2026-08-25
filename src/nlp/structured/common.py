@@ -6,12 +6,10 @@ from src.nlp.patterns import clean_bullet
 
 
 def join_block(block):
-    """Join a section block into searchable text."""
     return "\n".join(line.strip() for line in block if line.strip())
 
 
 def split_layout_columns(line):
-    """Split columns marked by the layout-aware text extractor."""
     return [
         value.strip()
         for value in re.split(r"\s*\|\s*", line)
@@ -20,7 +18,6 @@ def split_layout_columns(line):
 
 
 def entities_in_block(nlp_analysis, group_name, block, section_name):
-    """Return entity records whose text appears in a section block."""
     block_text = join_block(block).casefold()
     return [
         entity
@@ -31,7 +28,6 @@ def entities_in_block(nlp_analysis, group_name, block, section_name):
 
 
 def unique_strings(values):
-    """Deduplicate non-empty strings without changing their order."""
     unique_values = []
     seen_values = set()
 
@@ -51,7 +47,6 @@ def unique_strings(values):
 
 
 def contains_phrase(text, phrases):
-    """Return the first configured phrase found in text."""
     normalized_text = text.casefold()
 
     for phrase in sorted(phrases, key=len, reverse=True):
